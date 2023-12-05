@@ -24,11 +24,11 @@ local ClockinWebhook = ''
 local IncidentWebhook = ''
 --------------------------------
 
-QBCore.Functions.CreateCallback('ps-mdt:server:MugShotWebhook', function(source, cb)
-    if MugShotWebhook == '' then
+lib.callback.register("ps-mdt:server:MugShotWebhook", function()
+	if MugShotWebhook == '' then
         print("\27[31mA webhook is missing in: MugShotWebhook (server > main.lua > line 16)\27[0m")
     else
-        cb(MugShotWebhook)
+        return MugShotWebhook
     end
 end)
 
@@ -221,20 +221,14 @@ RegisterNetEvent("ps-mdt:server:ClockSystem", function()
     end
 end)
 
-QBCore.Functions.CreateCallback('ps-mdt:getDispatchCalls', function(source, cb)
+lib.callback.register('ps-mdt:getDispatchCalls', function()
     if GetResourceState('ps-dispatch') ~= 'started' then
-        cb({})
-        return
+		print('\27[ps-mdt] ps-dispatch is not started.\27')
+        return ({})
     end
 
     local calls = exports['ps-dispatch']:GetDispatchCalls()
-
-    if next(calls) == nil then
-        cb({})
-        return
-    end
-
-    cb(calls)
+    return calls
 end)
 
 RegisterNetEvent('mdt:server:openMDT', function()
@@ -242,11 +236,7 @@ RegisterNetEvent('mdt:server:openMDT', function()
 	local PlayerData = GetPlayerData(src)
 	if not PermCheck(src, PlayerData) then return end
 	local Radio = Player(src).state.radioChannel or 0
-		
-	-- if GetResourceState('ps-dispatch') == 'started' then
-	-- 	calls = exports['ps-dispatch']:GetDispatchCalls()
-	-- end
-		
+	
 	activeUnits[PlayerData.citizenid] = {
 		cid = PlayerData.citizenid,
 		callSign = PlayerData.metadata['callsign'],
@@ -262,8 +252,8 @@ RegisterNetEvent('mdt:server:openMDT', function()
 	TriggerClientEvent('mdt:client:open', src, bulletin, activeUnits, PlayerData.citizenid)
 end)
 
-QBCore.Functions.CreateCallback('mdt:server:SearchProfile', function(source, cb, sentData)
-    if not sentData then  return cb({}) end
+lib.callback.register('mdt:server:SearchProfile', function(source, sentData)
+    if not sentData then return {} end
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if Player then
@@ -272,7 +262,7 @@ QBCore.Functions.CreateCallback('mdt:server:SearchProfile', function(source, cb,
             local people = MySQL.query.await("SELECT p.citizenid, p.charinfo, md.pfp, md.fingerprint FROM players p LEFT JOIN mdt_data md on p.citizenid = md.cid WHERE LOWER(CONCAT(JSON_VALUE(p.charinfo, '$.firstname'), ' ', JSON_VALUE(p.charinfo, '$.lastname'))) LIKE :query OR LOWER(`charinfo`) LIKE :query OR LOWER(`citizenid`) LIKE :query OR LOWER(md.fingerprint) LIKE :query AND jobtype = :jobtype LIMIT 20", { query = string.lower('%'..sentData..'%'), jobtype = JobType })
             local citizenIds = {}
             local citizenIdIndexMap = {}
-            if not next(people) then cb({}) return end
+            if not next(people) then return {} end
 
             for index, data in pairs(people) do
                 people[index]['warrant'] = false
@@ -299,15 +289,13 @@ QBCore.Functions.CreateCallback('mdt:server:SearchProfile', function(source, cb,
                 end
             end
 			TriggerClientEvent('mdt:client:searchProfile', src, people, false)
-
-            return cb(people)
+            return people
         end
     end
-
-    return cb({})
+    return {}
 end)
 
-QBCore.Functions.CreateCallback("mdt:server:getWarrants", function(source, cb)
+lib.callback.register('mdt:server:getWarrants', function(source)
     local WarrantData = {}
     local data = MySQL.query.await("SELECT * FROM mdt_convictions", {})
     for _, value in pairs(data) do
@@ -320,15 +308,16 @@ QBCore.Functions.CreateCallback("mdt:server:getWarrants", function(source, cb)
             }
         end
     end
-    cb(WarrantData)
+    return WarrantData
 end)
 
-QBCore.Functions.CreateCallback('mdt:server:OpenDashboard', function(source, cb)
-	local PlayerData = GetPlayerData(source)
-	if not PermCheck(source, PlayerData) then return end
+lib.callback.register('mdt:server:OpenDashboard', function()
+	local src = source
+	local PlayerData = GetPlayerData(src)
+	if not PermCheck(src, PlayerData) then return end
 	local JobType = GetJobType(PlayerData.job.name)
 	local bulletin = GetBulletins(JobType)
-	cb(bulletin)
+	return bulletin
 end)
 
 RegisterNetEvent('mdt:server:NewBulletin', function(title, info, time)
@@ -360,8 +349,8 @@ RegisterNetEvent('mdt:server:deleteBulletin', function(id, title)
 	AddLog("Bulletin with Title: "..title.." was deleted by " .. GetNameFromPlayerData(PlayerData) .. ".")
 end)
 
-QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb, sentId)
-	if not sentId then return cb({}) end
+lib.callback.register('mdt:server:GetProfileData', function(source, sentId)
+	if not sentId then return {} end
 
 	local src = source
 	local PlayerData = GetPlayerData(src)
@@ -537,7 +526,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 		print("Fetched fingerprint from mdt_data:", mdtData.fingerprint)
 	end
 
-	return cb(person)
+	return person
 end)
 
 RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, tags, gallery, licenses, fingerprint)
@@ -560,7 +549,6 @@ RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName
         end)
     end
 end)
-
 
 -- Mugshotd
 RegisterNetEvent('cqc-mugshot:server:triggerSuspect', function(suspect)
@@ -589,7 +577,6 @@ RegisterNetEvent("mdt:server:updateLicense", function(cid, type, status)
 end)
 
 -- Incidents
-
 RegisterNetEvent('mdt:server:getAllIncidents', function()
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
@@ -999,11 +986,11 @@ RegisterNetEvent('mdt:server:newReport', function(existing, id, title, reporttyp
 	end
 end)
 
-QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb, sentData)
-	if not sentData then  return cb({}) end
+lib.callback.register('mdt:server:SearchVehicles', function(source, sentData)
+	if not sentData then return {} end
 	local src = source
 	local PlayerData = GetPlayerData(src)
-	if not PermCheck(source, PlayerData) then return cb({}) end
+	if not PermCheck(source, PlayerData) then return {} end
 
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
@@ -1014,7 +1001,7 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 				query = string.lower('%'..sentData..'%')
 			})
 
-			if not next(vehicles) then cb({}) return end
+			if not next(vehicles) then return {} end
 
 			for _, value in ipairs(vehicles) do
 				if value.state == 0 then
@@ -1045,12 +1032,10 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 
 				value.owner = ownerResult['firstname'] .. " " .. ownerResult['lastname']
 			end
-			return cb(vehicles)
+			return vehicles
 		end
-
-		return cb({})
+		return {}
 	end
-
 end)
 
 RegisterNetEvent('mdt:server:getVehicleData', function(plate)
@@ -1092,7 +1077,6 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 
 					if vehicle[1]['image'] == nil then vehicle[1]['image'] = "img/not-found.webp" end
 				end
-
 				TriggerClientEvent('mdt:client:getVehicleData', src, vehicle)
 			end
 		end
@@ -1187,10 +1171,10 @@ RegisterNetEvent('mdt:server:searchCalls', function(calls)
 	end
 end)
 
-QBCore.Functions.CreateCallback('mdt:server:SearchWeapons', function(source, cb, sentData)
-	if not sentData then  return cb({}) end
+lib.callback.register('mdt:server:SearchWeapons', function(source, sentData)
+	if not sentData then  return {} end
 	local PlayerData = GetPlayerData(source)
-	if not PermCheck(source, PlayerData) then return cb({}) end
+	if not PermCheck(source, PlayerData) then return {} end
 
 	local Player = QBCore.Functions.GetPlayer(source)
 	if Player then
@@ -1199,7 +1183,7 @@ QBCore.Functions.CreateCallback('mdt:server:SearchWeapons', function(source, cb,
 			local matches = MySQL.query.await('SELECT * FROM mdt_weaponinfo WHERE LOWER(`serial`) LIKE :query OR LOWER(`weapModel`) LIKE :query OR LOWER(`owner`) LIKE :query LIMIT 25', {
 				query = string.lower('%'..sentData..'%')
 			})
-			cb(matches)
+			return matches
 		end
 	end
 end)
@@ -1789,19 +1773,19 @@ function GetVehicleOwner(plate)
 end
 
 -- Returns the source for the given citizenId
-QBCore.Functions.CreateCallback('mdt:server:GetPlayerSourceId', function(source, cb, targetCitizenId)
-    local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(targetCitizenId)
+lib.callback.register('mdt:server:GetPlayerSourceId', function(source, targetCitizenId)
+	local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(targetCitizenId)
     if targetPlayer == nil then 
         TriggerClientEvent('QBCore:Notify', source, "Citizen seems Asleep / Missing", "error")
         return
     end
     local targetSource = targetPlayer.PlayerData.source
 
-    cb(targetSource)
+    return targetSource
 end)
 
-QBCore.Functions.CreateCallback('getWeaponInfo', function(source, cb)
-    local Player = QBCore.Functions.GetPlayer(source)
+lib.callback.register('getWeaponInfo', function(source)
+	local Player = QBCore.Functions.GetPlayer(source)
     local weaponInfos = {}
 	if Config.InventoryForWeaponsImages == "ox_inventory" then
 		local inv = exports.ox_inventory:GetInventoryItems(source)
@@ -1839,7 +1823,7 @@ QBCore.Functions.CreateCallback('getWeaponInfo', function(source, cb)
 			end
 		end	
 	end
-    cb(weaponInfos)
+    return weaponInfos
 end)
 
 RegisterNetEvent('mdt:server:registerweapon', function(serial, imageurl, notes, owner, weapClass, weapModel) 

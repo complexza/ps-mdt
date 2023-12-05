@@ -1,13 +1,15 @@
 fx_version 'cerulean'
 game 'gta5'
-
 author 'Flawws, Flakey, Idris and the Project Sloth team'
 description 'EchoRP MDT Rewrite for QBCore'
 version '2.6.2'
 
 lua54 'yes'
 
-shared_script 'shared/config.lua'
+shared_scripts {
+    '@ox_lib/init.lua',
+    'shared/config.lua'
+}
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',

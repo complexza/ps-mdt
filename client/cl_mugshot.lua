@@ -17,11 +17,10 @@ local MugShots = {}
 -- Mugshot functions
 
 local function TakeMugShot()
-    QBCore.Functions.TriggerCallback('ps-mdt:server:MugShotWebhook', function(MugShotWebhook)
-        exports['screenshot-basic']:requestScreenshotUpload(MugShotWebhook, 'files[]', {encoding = 'jpg'}, function(data)
-            local resp = json.decode(data)
-            table.insert(MugshotArray, resp.attachments[1].url)
-        end)
+    local MugShotWebhook = lib.callback.await('ps-mdt:server:MugShotWebhook', false)
+    exports['screenshot-basic']:requestScreenshotUpload(MugShotWebhook, 'files[]', {encoding = 'jpg'}, function(data)
+        local resp = json.decode(data)
+        table.insert(MugshotArray, resp.attachments[1].url)
     end)
 end
 
@@ -190,26 +189,20 @@ RegisterNetEvent('cqc-mugshot:client:trigger', function()
 end)
 
 RegisterNUICallback("sendToJail", function(data, cb)
-    QBCore.Functions.TriggerCallback('ps-mdt:server:MugShotWebhook', function(MugShotWebhook)
-        if MugShotWebhook ~= '' then
-            local citizenId, sentence = data.citizenId, data.sentence
+    local MugShotWebhook = lib.callback.await('ps-mdt:server:MugShotWebhook', false)
+    if MugShotWebhook ~= '' then
+        local citizenId, sentence = data.citizenId, data.sentence
 
-            -- Gets the player id from the citizenId
-            local p = promise.new()
-            QBCore.Functions.TriggerCallback('mdt:server:GetPlayerSourceId', function(result)
-                p:resolve(result)
-            end, citizenId)
-        
-            local targetSourceId = Citizen.Await(p)
-        
-            if sentence > 0 then
-                if Config.UseCQCMugshot    then
-                    TriggerServerEvent('cqc-mugshot:server:triggerSuspect', targetSourceId)
-                end
-                Citizen.Wait(5000)
-                -- Uses qb-policejob JailPlayer event
-                TriggerServerEvent("police:server:JailPlayer", targetSourceId, sentence)
+        -- Gets the player id from the citizenId
+        local p = promise.new()
+        local targetSourceId = lib.callback.await('mdt:server:GetPlayerSourceId', false, citizenId)
+        if sentence > 0 then
+            if Config.UseCQCMugshot    then
+                TriggerServerEvent('cqc-mugshot:server:triggerSuspect', targetSourceId)
             end
+            Citizen.Wait(5000)
+            -- Uses qb-policejob JailPlayer event
+            TriggerServerEvent("police:server:JailPlayer", targetSourceId, sentence)
         end
-    end)
+    end
 end)

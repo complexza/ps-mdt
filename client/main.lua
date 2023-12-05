@@ -205,11 +205,10 @@ RegisterNetEvent('mdt:client:dashboardbulletin', function(sentData)
 end)
 
 RegisterNetEvent('mdt:client:dashboardWarrants', function()
-    QBCore.Functions.TriggerCallback("mdt:server:getWarrants", function(data)
-        if data then
-            SendNUIMessage({ type = "warrants", data = data })
-        end
-    end)
+    local data = lib.callback.await('mdt:server:getWarrants', false)
+    if data then
+        SendNUIMessage({ type = "warrants", data = data })
+    end
     -- SendNUIMessage({ type = "warrants",})
 end)
 
@@ -262,10 +261,8 @@ RegisterNetEvent('mdt:client:open', function(bulletin, activeUnits, cid)
     SendNUIMessage({ type = "data", activeUnits = activeUnits, citizenid = cid, ondutyonly = Config.OnlyShowOnDuty, name = "Welcome, " ..PlayerData.job.grade.name..' '..PlayerData.charinfo.lastname:sub(1,1):upper()..PlayerData.charinfo.lastname:sub(2), location = playerStreetsLocation, fullname = PlayerData.charinfo.firstname..' '..PlayerData.charinfo.lastname, bulletin = bulletin })
     TriggerEvent("mdt:client:dashboardWarrants")
 
-    QBCore.Functions.TriggerCallback('ps-mdt:getDispatchCalls', function(calls)
-        SendNUIMessage({ type = "calls", data = calls })
-    end)
-
+    local calls = lib.callback.await('ps-mdt:getDispatchCalls', false)
+    SendNUIMessage({ type = "calls", data = calls })
 end)
 
 RegisterNetEvent('mdt:client:exitMDT', function()
@@ -279,15 +276,8 @@ end)
 --====================================================================================
 
 RegisterNUICallback("searchProfiles", function(data, cb)
-    local p = promise.new()
-
-    QBCore.Functions.TriggerCallback('mdt:server:SearchProfile', function(result)
-        p:resolve(result)
-    end, data.name)
-
-    local data = Citizen.Await(p)
-
-    cb(data)
+    local result = lib.callback.await('mdt:server:SearchProfile', false, data.name)
+    cb(result)
 end)
 
 
@@ -312,14 +302,10 @@ end)
 
 RegisterNUICallback("getProfileData", function(data, cb)
     local id = data.id
-    local p = nil
+    local result = nil
     local getProfileDataPromise = function(data)
-        if p then return end
-        p = promise.new()
-        QBCore.Functions.TriggerCallback('mdt:server:GetProfileData', function(result)
-            p:resolve(result)
-        end, data)
-        return Citizen.Await(p)
+        local result = lib.callback.await('mdt:server:GetProfileData', false, data)
+        return result
     end
     local pP = nil
     local result = getProfileDataPromise(id)
@@ -396,12 +382,7 @@ RegisterNUICallback("sendFine", function(data, cb)
     local citizenId, fine, incidentId = data.citizenId, data.fine, data.incidentId
     
     -- Gets the player id from the citizenId
-    local p = promise.new()
-    QBCore.Functions.TriggerCallback('mdt:server:GetPlayerSourceId', function(result)
-        p:resolve(result)
-    end, citizenId)
-
-    local targetSourceId = Citizen.Await(p)
+    local targetSourceId = lib.callback.await('mdt:server:GetPlayerSourceId', false, citizenId)
 
     if fine > 0 then
         if Config.BillVariation then
@@ -419,14 +400,8 @@ end)
 -- If you use a different community service system, you will need to change this
 RegisterNUICallback("sendToCommunityService", function(data, cb)
     local citizenId, sentence = data.citizenId, data.sentence
-
     -- Gets the player id from the citizenId
-    local p = promise.new()
-    QBCore.Functions.TriggerCallback('mdt:server:GetPlayerSourceId', function(result)
-        p:resolve(result)
-    end, citizenId)
-
-    local targetSourceId = Citizen.Await(p)
+    local targetSourceId = lib.callback.await('mdt:server:GetPlayerSourceId', false, citizenId)
 
     if sentence > 0 then
         TriggerServerEvent("qb-communityservice:server:StartCommunityService", targetSourceId, sentence)
@@ -637,14 +612,7 @@ end)
 ------------------------------------------
 --====================================================================================
 RegisterNUICallback("searchVehicles", function(data, cb)
-
-    local p = promise.new()
-
-    QBCore.Functions.TriggerCallback('mdt:server:SearchVehicles', function(result)
-        p:resolve(result)
-    end, data.name)
-
-    local result = Citizen.Await(p)
+    local result = lib.callback.await('mdt:server:SearchVehicles', false, data.name)
     for i=1, #result do
         local vehicle = result[i]
         local mods = json.decode(result[i].mods)
@@ -655,7 +623,6 @@ RegisterNUICallback("searchVehicles", function(data, cb)
         result[i]['model'] = vehData["brand"] .. ' ' .. vehData["name"]
     end
     cb(result)
-
 end)
 
 RegisterNUICallback("getVehicleData", function(data, cb)
@@ -720,13 +687,7 @@ end)
 ------------------------------------------
 --====================================================================================
 RegisterNUICallback("searchWeapons", function(data, cb)
-    local p = promise.new()
-
-    QBCore.Functions.TriggerCallback('mdt:server:SearchWeapons', function(result)
-        p:resolve(result)
-    end, data.name)
-
-    local result = Citizen.Await(p)
+    local result = lib.callback.await('mdt:server:SearchWeapons', false, data.name)
     cb(result)
 end)
 
@@ -994,10 +955,9 @@ RegisterNetEvent('mdt:client:statusImpound', function(data, plate)
     SendNUIMessage({ type = "statusImpound", data = data, plate = plate })
 end)
 
-function GetPlayerWeaponInfos(cb)
-    QBCore.Functions.TriggerCallback('getWeaponInfo', function(weaponInfos)
-        cb(weaponInfos)
-    end)
+function GetPlayerWeaponInfos()
+    local weaponInfos = lib.callback.await('getWeaponInfo', false)
+    return weaponInfos
 end
 
 --3rd Eye Trigger Event
