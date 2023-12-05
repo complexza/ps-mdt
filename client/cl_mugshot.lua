@@ -194,10 +194,9 @@ RegisterNUICallback("sendToJail", function(data, cb)
         local citizenId, sentence = data.citizenId, data.sentence
 
         -- Gets the player id from the citizenId
-        local p = promise.new()
         local targetSourceId = lib.callback.await('mdt:server:GetPlayerSourceId', false, citizenId)
         if sentence > 0 then
-            if Config.UseCQCMugshot    then
+            if Config.UseCQCMugshot then
                 TriggerServerEvent('cqc-mugshot:server:triggerSuspect', targetSourceId)
             end
             Citizen.Wait(5000)
